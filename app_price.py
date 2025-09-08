@@ -52,15 +52,15 @@ stemmer = initialize_nltk()
 @st.cache_resource
 def load_artifacts():
     try:
-        model = joblib.load("/final_model.joblib")
-        scaler = joblib.load('/scaler.joblib')
-        target_maps = joblib.load('/target_encoding_maps.joblib')
-        mean_price = joblib.load('/\global_mean_price.joblib')
-        df_full = pd.read_excel("/dichvucong_medicines_Final.xlsx")
-        train_cols = pd.read_csv("/X_train_price_processed.csv").columns.tolist()
+        model = joblib.load(os.path.join(BASE_DIR, "final_model.joblib"))
+        scaler = joblib.load(os.path.join(BASE_DIR, "scaler.joblib"))
+        target_maps = joblib.load(os.path.join(BASE_DIR, "target_encoding_maps.joblib"))
+        mean_price = joblib.load(os.path.join(BASE_DIR, "global_mean_price.joblib"))
+        df_full = pd.read_excel(os.path.join(BASE_DIR, "dichvucong_medicines_Final.xlsx"))
+        train_cols = pd.read_csv(os.path.join(BASE_DIR, "X_train_price_processed.csv")).columns.tolist()
         return model, scaler, target_maps, mean_price, df_full, train_cols
-    except FileNotFoundError as e:
-        st.error(f"Loaded file error.")
+    except FileNotFoundError:
+        st.error("❌ Không tìm thấy file artifact (model, scaler, data...) trong repo.")
         st.stop()
 
 stemmer = initialize_nltk()
@@ -338,3 +338,4 @@ if df_full is not None:
                     except Exception as e:
 
                         st.error(f"Lỗi khi dự đoán: {e}")
+

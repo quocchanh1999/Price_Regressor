@@ -40,12 +40,16 @@ def ocr_center_of_image(_image_bytes, _ocr_reader, margin_percent=15):
             
     return "\n".join(center_texts)
 
+import nltk
+from nltk.stem import SnowballStemmer
+
 def initialize_nltk():
     try:
         nltk.data.find('tokenizers/punkt')
-    except nltk.downloader.DownloadError:
-        nltk.download('punkt')
+    except LookupError:
+        nltk.download('punkt', quiet=True)
     return SnowballStemmer("english")
+
 
 stemmer = initialize_nltk()
 
@@ -338,4 +342,5 @@ if df_full is not None:
                     except Exception as e:
 
                         st.error(f"Lỗi khi dự đoán: {e}")
+
 

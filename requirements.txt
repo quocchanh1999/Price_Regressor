@@ -1,11 +1,10 @@
 streamlit
-easyocr
-torch
-opencv-python-headless
+pandas
 numpy
-pillow
-nltk
-xgboost
+scikit-learn
 joblib
 openpyxl
 rapidfuzz
+nltk
+pillow
+easyocr

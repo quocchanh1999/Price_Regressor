@@ -6,3 +6,6 @@ numpy
 pillow
 nltk
 xgboost
+joblib
+openpyxl
+rapidfuzz

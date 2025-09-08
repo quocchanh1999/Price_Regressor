@@ -52,12 +52,12 @@ stemmer = initialize_nltk()
 @st.cache_resource
 def load_artifacts():
     try:
-        model = joblib.load("D:\\GONSA\\Drugbank\\final_model.joblib")
-        scaler = joblib.load('D:\\GONSA\\Drugbank\\scaler.joblib')
-        target_maps = joblib.load('D:\\GONSA\\Drugbank\\target_encoding_maps.joblib')
-        mean_price = joblib.load('D:\\GONSA\\Drugbank\\global_mean_price.joblib')
-        df_full = pd.read_excel("D:\\GONSA\\Drugbank\\dichvucong_medicines_Final.xlsx")
-        train_cols = pd.read_csv("D:\\GONSA\\Drugbank\\X_train_price_processed.csv").columns.tolist()
+        model = joblib.load("/final_model.joblib")
+        scaler = joblib.load('/scaler.joblib')
+        target_maps = joblib.load('/target_encoding_maps.joblib')
+        mean_price = joblib.load('/\global_mean_price.joblib')
+        df_full = pd.read_excel("/dichvucong_medicines_Final.xlsx")
+        train_cols = pd.read_csv("/X_train_price_processed.csv").columns.tolist()
         return model, scaler, target_maps, mean_price, df_full, train_cols
     except FileNotFoundError as e:
         st.error(f"Loaded file error.")
@@ -336,4 +336,5 @@ if df_full is not None:
                         st.metric("Giá Kê Khai (Dự đoán)", f"{gia_kk_pred:,.0f} VND")
                         st.metric("Giá Thị Trường (Dự đoán)", f"{gia_tt_pred:,.0f} VND")
                     except Exception as e:
+
                         st.error(f"Lỗi khi dự đoán: {e}")

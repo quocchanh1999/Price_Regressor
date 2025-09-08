@@ -10,6 +10,7 @@ from nltk.stem.snowball import SnowballStemmer
 import unicodedata
 import easyocr
 from PIL import Image
+import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 st.set_page_config(layout="centered", page_title="Dự đoán Giá thuốc")
@@ -343,6 +344,7 @@ if df_full is not None:
                     except Exception as e:
 
                         st.error(f"Lỗi khi dự đoán: {e}")
+
 
 
 

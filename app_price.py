@@ -257,7 +257,7 @@ st.title("Gợi ý Giá thuốc")
 model, scaler, target_maps, mean_price, df_full, train_cols = load_artifacts()
 
 if df_full is not None:
-    user_query = st.text_input("", placeholder="Nhập tên thuốc, ví dụ: A.T Rosuvastatin 40mg", label_visibility="collapsed")
+    user_query = st.text_input("", placeholder="Nhập tên thuốc, ví dụ: A.T Esomeprazol 20mg 30 viên", label_visibility="collapsed")
 
     if user_query:
         with st.spinner("Đang xử lý..."):
@@ -269,55 +269,45 @@ if df_full is not None:
             st.markdown(f"**Số lượng:** {parsed_info['soLuong']}")
             st.markdown(f"**Đơn vị tính:** {parsed_info['donViTinh']}")
             st.markdown("---")
-            user_query_cleaned = user_query.strip().lower()
+
+            choices = df_full['tenThuoc'].dropna().tolist()
+            best_match, score, _ = process.extractOne(user_query, choices)
             
-            @st.cache_data
-            def get_name_map(_df): 
-                return {name.strip().lower(): name for name in _df['tenThuoc'].dropna()}
-            
-            name_map = get_name_map(df_full)
-
-            best_match = None; score = 0; method = "fuzz"
-
-            if user_query_cleaned in name_map:
-                best_match = name_map[user_query_cleaned]; score = 100; method = "exact"
-            else:
-                choices = df_full['tenThuoc'].dropna().tolist()
-                match_result = process.extractOne(user_query, choices)
-                if match_result: best_match, score, _ = match_result
-
             if not best_match:
                 st.warning("Không tìm thấy thuốc tương tự trong CSDL.")
             else:
                 drug_info_row = df_full[df_full['tenThuoc'] == best_match].iloc[0]
-                extrapolation_successful = False
+                if score >= 85:
+                    can_extrapolate = False
 
-                if method == "exact" or score >= 95:
-                    st.markdown(f"**Phương thức:** `Levenshtein distance (similarity: {score:.0f}%)`")
-                    gia_kk = drug_info_row['giaBanBuonDuKien']
-                    gia_tt = drug_info_row.get('giaThanh', np.nan)
-                    st.metric("Giá Kê Khai", f"{gia_kk:,.0f} VND" if pd.notna(gia_kk) else "Không có dữ liệu")
-                    st.metric("Giá Thị Trường", f"{gia_tt:,.0f} VND" if pd.notna(gia_tt) else "Không có dữ liệu")
+                    if pd.notna(parsed_info['hoatChat']) and pd.notna(parsed_info['hamLuong']):
+                        user_hc_clean = str(parsed_info.get('hoatChat', '')).lower()
+                        db_hc_clean = str(drug_info_row.get('hoatChat', '')).lower()
+                        if fuzz.partial_ratio(user_hc_clean, db_hc_clean) > 80:
+                            user_dosage_mg = parse_dosage_value(parsed_info.get('hamLuong'))
+                            db_dosage_mg = parse_dosage_value(drug_info_row.get('hamLuong'))
+                            if user_dosage_mg > 0 and db_dosage_mg > 0 and user_dosage_mg != db_dosage_mg:
+                                can_extrapolate = True
 
-                elif score >= 85 and pd.notna(parsed_info['hamLuong']):
-                    user_hc_clean = str(parsed_info.get('hoatChat') or parsed_info.get('tenThuoc', '')).lower()
-                    db_hc_clean = str(drug_info_row.get('hoatChat', '')).lower()
-                    
-                    if fuzz.partial_ratio(user_hc_clean, db_hc_clean) > 80:
-                        user_dosage_mg = parse_dosage_value(parsed_info.get('hamLuong'))
-                        db_dosage_mg = parse_dosage_value(drug_info_row.get('hamLuong'))
+                    if can_extrapolate:
+                        ratio = user_dosage_mg / db_dosage_mg
+                        st.markdown(f"**Phương thức:** `Ngoại suy theo hàm lượng (Tỷ lệ: {ratio:.2f}x)`")
+                        st.caption(f"Dựa trên giá của *{best_match}* (độ tương đồng tên: {score:.0f}%)")
+
+                        gia_kk_base = drug_info_row['giaBanBuonDuKien']; gia_tt_base = drug_info_row.get('giaThanh', np.nan)
+                        gia_kk_extrapolated = gia_kk_base * ratio; gia_tt_extrapolated = gia_tt_base * ratio if pd.notna(gia_tt_base) else np.nan
                         
-                        if user_dosage_mg > 0 and db_dosage_mg > 0 and user_dosage_mg != db_dosage_mg:
-                            extrapolation_successful = True 
-                            ratio = user_dosage_mg / db_dosage_mg
-                            st.markdown(f"**Phương thức:** `Ngoại suy theo hàm lượng (Tỷ lệ: {ratio:.2f}x)`")
-                            st.caption(f"Dựa trên giá của *{best_match}*")
-                            gia_kk_base = drug_info_row['giaBanBuonDuKien']; gia_tt_base = drug_info_row.get('giaThanh', np.nan)
-                            gia_kk_extrapolated = gia_kk_base * ratio; gia_tt_extrapolated = gia_tt_base * ratio if pd.notna(gia_tt_base) else np.nan
-                            st.metric("Giá Kê Khai (Ước tính)", f"{gia_kk_extrapolated:,.0f} VND" if pd.notna(gia_kk_base) else "Không có dữ liệu")
-                            st.metric("Giá Thị Trường (Ước tính)", f"{gia_tt_extrapolated:,.0f} VND" if pd.notna(gia_tt_base) else "Không có dữ liệu")
+                        st.metric("Giá Kê Khai (Ước tính)", f"{gia_kk_extrapolated:,.0f} VND" if pd.notna(gia_kk_base) else "Không có dữ liệu")
+                        st.metric("Giá Thị Trường (Ước tính)", f"{gia_tt_extrapolated:,.0f} VND" if pd.notna(gia_tt_base) else "Không có dữ liệu")
 
-                if not (method == "exact" or score >= 95 or extrapolation_successful):
+                    else:
+                        st.markdown(f"**Phương thức:** `Levenshtein distance (similarity: {score:.0f}%)`")
+                        gia_kk = drug_info_row['giaBanBuonDuKien']
+                        gia_tt = drug_info_row.get('giaThanh', np.nan)
+                        st.metric("Giá Kê Khai", f"{gia_kk:,.0f} VND" if pd.notna(gia_kk) else "Không có dữ liệu")
+                        st.metric("Giá Thị Trường", f"{gia_tt:,.0f} VND" if pd.notna(gia_tt) else "Không có dữ liệu")
+
+                else:
                     st.markdown(f"**Phương thức:** `XGBoost Regressor`")
                     st.caption(f"Sử dụng thông tin bổ sung (nhà SX, nước SX, Dạng bào chế...) từ thuốc tương tự nhất: *{best_match}*")
                     
@@ -341,6 +331,7 @@ if df_full is not None:
                         st.metric("Giá Thị Trường (Dự đoán)", f"{gia_tt_pred:,.0f} VND")
                     except Exception as e:
                         st.error(f"Lỗi khi dự đoán: {e}")
+
 
 
 

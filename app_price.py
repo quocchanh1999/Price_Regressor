@@ -261,19 +261,14 @@ if df_full is not None:
 
     if user_query:
         with st.spinner("Đang xử lý..."):
-            # BƯỚC 1: Luôn bóc tách input của người dùng trước
             parsed_info = parse_user_query(user_query)
 
-            # BƯỚC 2: Luôn hiển thị thông tin đã bóc tách
             st.markdown(f"**Tên thuốc:** {parsed_info['tenThuoc']}")
             st.markdown(f"**Hoạt chất:** {parsed_info['hoatChat'] if pd.notna(parsed_info['hoatChat']) else '(Chưa xác định)'}")
             st.markdown(f"**Hàm lượng:** {parsed_info['hamLuong'] if pd.notna(parsed_info['hamLuong']) else '(Chưa xác định)'}")
             st.markdown(f"**Số lượng:** {parsed_info['soLuong']}")
             st.markdown(f"**Đơn vị tính:** {parsed_info['donViTinh']}")
             st.markdown("---")
-
-            # BƯỚC 3: Tìm kiếm thông minh
-            # Luôn tìm kiếm trên chuỗi đầy đủ trước
             user_query_cleaned = user_query.strip().lower()
             
             @st.cache_data
@@ -291,26 +286,20 @@ if df_full is not None:
                 match_result = process.extractOne(user_query, choices)
                 if match_result: best_match, score, _ = match_result
 
-            # BƯỚC 4: Phân nhánh logic dứt khoát
             if not best_match:
                 st.warning("Không tìm thấy thuốc tương tự trong CSDL.")
             else:
                 drug_info_row = df_full[df_full['tenThuoc'] == best_match].iloc[0]
-                
-                # Biến cờ để quyết định có thực hiện ngoại suy thành công không
                 extrapolation_successful = False
-                
-                # Nhánh 1: Tra cứu trực tiếp
+
                 if method == "exact" or score >= 95:
-                    st.markdown(f"**Phương thức:** `Tra cứu trực tiếp (độ tương đồng: {score:.0f}%)`")
+                    st.markdown(f"**Phương thức:** `Levenshtein distance (similarity: {score:.0f}%)`")
                     gia_kk = drug_info_row['giaBanBuonDuKien']
                     gia_tt = drug_info_row.get('giaThanh', np.nan)
                     st.metric("Giá Kê Khai", f"{gia_kk:,.0f} VND" if pd.notna(gia_kk) else "Không có dữ liệu")
                     st.metric("Giá Thị Trường", f"{gia_tt:,.0f} VND" if pd.notna(gia_tt) else "Không có dữ liệu")
-                
-                # Nhánh 2: Thử ngoại suy
+
                 elif score >= 85 and pd.notna(parsed_info['hamLuong']):
-                    # Lấy hoạt chất từ input nếu có, nếu không thì lấy từ chính nó để so sánh
                     user_hc_clean = str(parsed_info.get('hoatChat') or parsed_info.get('tenThuoc', '')).lower()
                     db_hc_clean = str(drug_info_row.get('hoatChat', '')).lower()
                     
@@ -319,7 +308,7 @@ if df_full is not None:
                         db_dosage_mg = parse_dosage_value(drug_info_row.get('hamLuong'))
                         
                         if user_dosage_mg > 0 and db_dosage_mg > 0 and user_dosage_mg != db_dosage_mg:
-                            extrapolation_successful = True # Đánh dấu ngoại suy thành công
+                            extrapolation_successful = True 
                             ratio = user_dosage_mg / db_dosage_mg
                             st.markdown(f"**Phương thức:** `Ngoại suy theo hàm lượng (Tỷ lệ: {ratio:.2f}x)`")
                             st.caption(f"Dựa trên giá của *{best_match}*")
@@ -327,11 +316,9 @@ if df_full is not None:
                             gia_kk_extrapolated = gia_kk_base * ratio; gia_tt_extrapolated = gia_tt_base * ratio if pd.notna(gia_tt_base) else np.nan
                             st.metric("Giá Kê Khai (Ước tính)", f"{gia_kk_extrapolated:,.0f} VND" if pd.notna(gia_kk_base) else "Không có dữ liệu")
                             st.metric("Giá Thị Trường (Ước tính)", f"{gia_tt_extrapolated:,.0f} VND" if pd.notna(gia_tt_base) else "Không có dữ liệu")
-                
-                # Nhánh 3: Dự đoán bằng mô hình (trường hợp cuối cùng)
-                # Chỉ chạy nếu không tra cứu được VÀ không ngoại suy thành công
+
                 if not (method == "exact" or score >= 95 or extrapolation_successful):
-                    st.markdown(f"**Phương thức:** `Dự đoán bằng Mô hình`")
+                    st.markdown(f"**Phương thức:** `XGBoost Regressor`")
                     st.caption(f"Sử dụng thông tin bổ sung (nhà SX, nước SX, Dạng bào chế...) từ thuốc tương tự nhất: *{best_match}*")
                     
                     hybrid_data = {
@@ -354,6 +341,7 @@ if df_full is not None:
                         st.metric("Giá Thị Trường (Dự đoán)", f"{gia_tt_pred:,.0f} VND")
                     except Exception as e:
                         st.error(f"Lỗi khi dự đoán: {e}")
+
 
 
 

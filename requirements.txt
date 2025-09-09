@@ -8,3 +8,4 @@ rapidfuzz
 nltk
 pillow
 easyocr
+xgboost

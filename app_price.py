@@ -277,7 +277,7 @@ if df_full is not None:
                 st.warning("Không tìm thấy thuốc tương tự trong CSDL.")
             else:
                 drug_info_row = df_full[df_full['tenThuoc'] == best_match].iloc[0]
-                if score >= 85:
+                if score >= 90:
                     can_extrapolate = False
 
                     if pd.notna(parsed_info['hoatChat']) and pd.notna(parsed_info['hamLuong']):
@@ -331,6 +331,7 @@ if df_full is not None:
                         st.metric("Giá Thị Trường (Dự đoán)", f"{gia_tt_pred:,.0f} VND")
                     except Exception as e:
                         st.error(f"Lỗi khi dự đoán: {e}")
+
 
 
 
